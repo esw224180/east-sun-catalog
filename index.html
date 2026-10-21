@@ -24,8 +24,11 @@ function render(){
     const title=document.createElement('h2');title.textContent=p.name;
     const spec=document.createElement('p');spec.textContent=[p.category,p.volume,p.abv].filter(Boolean).join(' · ');
     const barcode=document.createElement('p');barcode.textContent='條碼：'+p.barcode;
+    const price=document.createElement('p');price.className='price';
+    price.textContent=typeof p.price==='number'&&Number.isFinite(p.price)&&p.price>=0&&p.currency==='TWD'?'NT$ '+new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2}).format(p.price):'價格請洽客服';
+    price.style.fontSize='24px';price.style.fontWeight='700';
     const a=document.createElement('a');a.textContent='聯絡客服';a.href='https://line.me/R/ti/p/'+encodeURIComponent(CONFIG.officialAccount);a.target='_blank';a.rel='noopener noreferrer';
-    card.append(title,spec,barcode,a);grid.append(card);
+    card.append(title,spec,price,barcode,a);grid.append(card);
   }
 }
 window.publicCatalog=data=>{
