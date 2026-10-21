@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>東太陽｜店家預約管理</title>
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0;font-family:"Microsoft JhengHei",sans-serif;background:#edf4fa;color:#243f57}body{display:flex;flex-direction:column;height:100dvh}header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:#245c88;color:white;padding-top:max(12px,env(safe-area-inset-top))}h1{font-size:17px;margin:0}button,a{font:inherit}button{padding:7px 10px;border:1px solid #ffffff70;border-radius:7px;background:transparent;color:inherit;cursor:pointer}.notice{margin:0;padding:9px 14px;font-size:12px;line-height:1.6;background:#f6f9fc}main{flex:1;min-height:0;position:relative;background:white}iframe{display:block;width:100%;height:100%;border:0}footer{padding:7px 12px max(7px,env(safe-area-inset-bottom));font-size:12px;text-align:center}footer a{color:#245c88}.loading{position:absolute;inset:0;display:grid;place-content:center;background:#fff;color:#62798b;pointer-events:none}.loading[hidden]{display:none}#close{display:none}
+</style>
+</head>
+<body>
+<header><h1>東太陽・店家預約管理</h1><div><button id="reload" type="button">重新整理</button> <button id="close" type="button">關閉</button></div></header>
+<p class="notice">店家專用。請輸入店家驗證碼後操作；接受預約後，系統會通知客戶並加入官方行事曆。</p>
+<main><div id="loading" class="loading">正在開啟店家管理頁…</div><iframe id="dashboard" title="東太陽店家預約管理頁" src="https://script.google.com/macros/s/AKfycbziZuYIin3aRJjCwujRFubd8iIqNAEFe9ppbDau6m14fy6_R72XNOx_NPAeqwqrBMaBoA/exec"></iframe></main>
+<footer>請由「待確認」選擇預約，再按「接受／拒絕」。 <a href="https://script.google.com/macros/s/AKfycbziZuYIin3aRJjCwujRFubd8iIqNAEFe9ppbDau6m14fy6_R72XNOx_NPAeqwqrBMaBoA/exec" target="_blank" rel="noopener">畫面異常時開啟管理頁</a></footer>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+const dashboard=document.getElementById('dashboard'),loading=document.getElementById('loading');
+dashboard.addEventListener('load',()=>{loading.hidden=true;});
+setTimeout(()=>{loading.hidden=true;},15000);
+document.getElementById('reload').addEventListener('click',()=>{loading.hidden=false;dashboard.src=dashboard.getAttribute('src');});
+document.getElementById('close').addEventListener('click',()=>{if(window.liff&&liff.isInClient())liff.closeWindow();});
+if(window.liff)liff.init({liffId:'2012112469-22cFHDzV'}).then(()=>{if(liff.isInClient())document.getElementById('close').style.display='inline-block';}).catch(()=>{});
+</script>
+</body>
+</html>
