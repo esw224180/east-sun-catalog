@@ -50,9 +50,9 @@ function catalogPriorityWithinSeries(items){return items.slice()}
 function catalogPreferredOrder(items){const series=['獵風系列','辦桌系列','甜在心系列','經典系列','蘭花系列','風土系列','紅酒系列'];const ranks=new Map(series.map((name,i)=>[name,i]));const prioritized=catalogPriorityWithinSeries(items);return prioritized.map((p,i)=>({p,i})).sort((a,b)=>(ranks.has(a.p.category)?ranks.get(a.p.category):series.length)-(ranks.has(b.p.category)?ranks.get(b.p.category):series.length)||a.i-b.i).map((x,i)=>({...x.p,displayNumber:i+1}))}
 const VERIFIED_LABEL_VOLUMES={"4712832540802":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540802-v2.webp"},"4712832540819":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540819-v2.webp"},"4712832540994":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540994-v2.webp"},"4712832540789":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540789-v2.webp"},"4712832540963":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540963-v2.webp"},"4712832540901":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540901-v2.webp"},"4712832540987":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540987-v2.webp"},"4712832541588":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832541588-v2.webp"},"4712832540581":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540581-v2.webp"},"4712832540888":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540888-v2.webp"},"4712832540949":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540949-v2.webp"},"4712832540826":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540826-v2.webp"},"4712832540697":{"volume":"480 mL","expectedPriorMl":500,"image":"https://esw224180.github.io/east-sun-catalog/4712832540697-v2.webp"}};
 function applyVerifiedLabelVolumes(items){return items.map(p=>{const v=VERIFIED_LABEL_VOLUMES[String(p.id)];if(!v||p.image!==v.image||parseFloat(p.volume)!==v.expectedPriorMl)return p;return {...p,originalVolume:p.volume,volume:v.volume}})}
-window.publicCatalog=data=>{clearTimeout(catalogTimer);if(!data||!data.ok||!Array.isArray(data.products)){state.textContent='目錄暫時無法載入，請稍後重試或聯絡客服。';return}products=catalogPreferredOrder(applyVerifiedLabelVolumes(data.products));loaded=true;$('total').textContent=products.length;search.disabled=false;$('sort').disabled=false;categories();render()};
+window.publicCatalog=data=>{clearTimeout(catalogTimer);if(!data||!data.ok||!Array.isArray(data.products)){state.textContent='目錄暫時無法載入，請稍後重試或聯絡客服。';return}products=catalogPreferredOrder(applyVerifiedLabelVolumes(data.products));loaded=true;$('total').textContent=products.length;search.disabled=false;$('sort').disabled=false;categories();render();restoreInquirySelectionFromUrl()};
 const sourceUrl=httpsUrl(CONFIG.appsScriptUrl);if(sourceUrl&&sourceUrl.hostname==='script.google.com'&&sourceUrl.pathname.startsWith('/macros/s/')&&sourceUrl.pathname.endsWith('/exec')){catalogTimer=setTimeout(()=>state.textContent='載入逾時，請重新整理頁面或聯絡客服。',15000);const s=document.createElement('script');s.src=sourceUrl.href;s.onerror=()=>{clearTimeout(catalogTimer);state.textContent='目錄暫時無法載入，請稍後重試或聯絡客服。'};document.head.append(s)}else state.textContent='目錄暫時無法載入，請聯絡客服。';
-if(CONFIG.liffId){if(window.liff)liff.init({liffId:CONFIG.liffId}).catch(()=>{$('lineState').textContent='LINE初始化未完成，仍可瀏覽商品資訊。'})}
+if(CONFIG.liffId){if(window.liff)liff.init({liffId:CONFIG.liffId}).then(()=>restoreInquirySelectionFromUrl()).catch(()=>{$('lineState').textContent='LINE初始化未完成，仍可瀏覽商品資訊。'})}
 
 // Selection uses original product IDs; public catalog data is never modified.
 const inquirySelection=new Map();let inquiryText='';
@@ -115,7 +115,17 @@ try{const saved=JSON.parse(localStorage.getItem('eastSunInquiryContactV1')||'nul
 $('inquiryRemember').onchange=()=>{if(!$('inquiryRemember').checked){try{localStorage.removeItem('eastSunInquiryContactV1')}catch(e){}}};
 const previousInquirySend=$('sendInquiry').onclick;$('sendInquiry').onclick=()=>{if($('inquiryRemember').checked){try{localStorage.setItem('eastSunInquiryContactV1',JSON.stringify(Object.fromEntries(inquirySavedFields.map(id=>[id,$(id).value]))))}catch(e){$('inquiryFeedback').textContent='此裝置無法儲存資料，仍可前往官方 LINE。'}}previousInquirySend()};
 
+// Return links contain only public product identifiers and quantities, no customer data.
+let inquiryReturnRestored=false;
+function restoreInquirySelectionFromUrl(){
+ if(inquiryReturnRestored||!loaded)return;
+ const value=new URLSearchParams(location.search).get('pick');if(!value)return;
+ const entries=value.split('.');if(entries.length>58)return;
+ const picks=[];for(const entry of entries){const match=/^([0-9a-z]{1,10})-([0-9a-z]{1,2})$/.exec(entry);if(!match)return;const barcode=String(parseInt(match[1],36)),qty=parseInt(match[2],36);const p=products.find(p=>String(p.barcode)===barcode);if(!p||!Number.isInteger(qty)||qty<1||qty>99)return;picks.push({p,qty})}
+ inquiryReturnRestored=true;inquirySelection.clear();picks.forEach(({p,qty})=>inquirySelection.set(inquiryKey(p),qty));render();
+}
+
 validateTaxIdField();
-if(loaded){render()}
+if(loaded){render();restoreInquirySelectionFromUrl()}
 
 </script></body></html>
