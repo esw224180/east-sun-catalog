@@ -18,7 +18,7 @@
 // LINE credentials remain in memory and are sent only to the embedded Apps Script page.
 const dashboard=document.getElementById('dashboard'),loading=document.getElementById('loading');
 let staffCredential=null,bridgeId=crypto.randomUUID();
-const staffReady=liff.init({liffId:'2012112469-22cFHDzV'}).then(()=>{
+const staffReady=liff.init({liffId:'2012178976-6qdbNoPU'}).then(()=>{
  if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return null}
  staffCredential=liff.getIDToken();return staffCredential
 }).catch(()=>null);
