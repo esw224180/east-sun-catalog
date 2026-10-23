@@ -11,16 +11,33 @@
 <body>
 <header><h1>東太陽・店家預約管理</h1><div><button id="reload" type="button">重新整理</button> <button id="close" type="button">關閉</button></div></header>
 <p class="notice">店家專用。請輸入店家驗證碼後操作；接受預約後，系統會通知客戶並加入官方行事曆。</p>
-<main><div id="loading" class="loading">正在開啟店家管理頁…</div><iframe id="dashboard" title="東太陽店家預約管理頁" src="https://script.google.com/macros/s/AKfycbziZuYIin3aRJjCwujRFubd8iIqNAEFe9ppbDau6m14fy6_R72XNOx_NPAeqwqrBMaBoA/exec"></iframe></main>
+<main><div id="loading" class="loading">正在開啟店家管理頁…</div><iframe id="dashboard" title="東太陽店家預約管理頁" src="about:blank"></iframe></main>
 <footer>請由「待確認」選擇預約，再按「接受／拒絕」。 <a href="https://script.google.com/macros/s/AKfycbziZuYIin3aRJjCwujRFubd8iIqNAEFe9ppbDau6m14fy6_R72XNOx_NPAeqwqrBMaBoA/exec" target="_blank" rel="noopener">畫面異常時開啟管理頁</a></footer>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
+// LINE credentials remain in memory and are sent only to the embedded Apps Script page.
 const dashboard=document.getElementById('dashboard'),loading=document.getElementById('loading');
-dashboard.addEventListener('load',()=>{loading.hidden=true;});
-setTimeout(()=>{loading.hidden=true;},15000);
-document.getElementById('reload').addEventListener('click',()=>{loading.hidden=false;dashboard.src=dashboard.getAttribute('src');});
-document.getElementById('close').addEventListener('click',()=>{if(window.liff&&liff.isInClient())liff.closeWindow();});
-if(window.liff)liff.init({liffId:'2012112469-22cFHDzV'}).then(()=>{if(liff.isInClient())document.getElementById('close').style.display='inline-block';}).catch(()=>{});
+let staffCredential=null,bridgeId=crypto.randomUUID();
+const staffReady=liff.init({liffId:'2012112469-22cFHDzV'}).then(()=>{
+ if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return null}
+ staffCredential=liff.getAccessToken();return staffCredential
+}).catch(()=>null);
+function openDashboard(){
+ bridgeId=crypto.randomUUID();const params=new URLSearchParams(location.search),url=new URL('https://script.google.com/macros/s/AKfycbziZuYIin3aRJjCwujRFubd8iIqNAEFe9ppbDau6m14fy6_R72XNOx_NPAeqwqrBMaBoA/exec');
+ if(params.get('view')==='inquiries'){url.searchParams.set('view','inquiries');const id=params.get('inquiry')||'';if(/^[a-f0-9-]{36}$/i.test(id))url.searchParams.set('inquiry',id);document.querySelector('header h1').textContent='東太陽・商品詢問管理';document.title='東太陽｜商品詢問管理';document.querySelector('.notice').textContent='店家專用。使用自己的LINE核對工作群組身分，再輸入原店內管理密碼。無須登入公司Google帳號。';document.querySelector('footer').firstChild.textContent='商品詢問可直接查看本筆資料並回覆。 '}
+ document.querySelector('footer a').href=url.href;url.searchParams.set('bridge',bridgeId);dashboard.src=url.href;if(window.liff&&liff.isInClient())document.getElementById('close').style.display='inline-block'
+}
+staffReady.then(openDashboard);
+window.addEventListener('message',async event=>{
+ if(!/^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/i.test(event.origin)||!event.data||event.data.type!=='ESW_STAFF_AUTH_REQUEST'||event.data.bridgeId!==bridgeId||typeof event.data.nonce!=='string'||!/^[a-f0-9-]{36}$/i.test(event.data.nonce)||!event.source)return;
+ const token=await staffReady;if(!token){event.source.postMessage({type:'ESW_STAFF_AUTH_RESPONSE',nonce:event.data.nonce,error:true},event.origin);return}
+ event.source.postMessage({type:'ESW_STAFF_AUTH_RESPONSE',nonce:event.data.nonce,accessToken:token},event.origin)
+});
+dashboard.addEventListener('load',()=>{loading.hidden=true});
+setTimeout(()=>{loading.hidden=true},15000);
+document.getElementById('reload').addEventListener('click',()=>{loading.hidden=false;openDashboard()});
+document.getElementById('close').addEventListener('click',()=>{if(window.liff&&liff.isInClient())liff.closeWindow()});
+
 </script>
 </body>
 </html>
