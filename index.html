@@ -27,7 +27,95 @@ body{padding-bottom:145px}.select-product{display:flex;align-items:center;gap:9p
 @media(max-width:600px){.esw-carrier-code{padding:8px}.esw-carrier-number{font-size:21px}.esw-carrier-dialog{padding:16px 10px}}
 .esw-carrier-small{width:210px;max-width:100%;padding:8px}.esw-carrier-small .esw-carrier-number{font-size:17px;letter-spacing:1px;margin:2px 0}.esw-carrier-code .esw-carrier-thumb{display:block;width:180px;max-width:100%;min-height:44px;padding:0;margin:0 auto;background:#fff;border:0;border-radius:0;line-height:0;cursor:zoom-in}.esw-carrier-small svg{max-width:180px}.esw-carrier-small small{font-size:12px;margin-top:2px}
 .esw-carrier-code.esw-carrier-small{width:104px;max-width:100%;margin:4px 0;padding:0;border:0;border-radius:0;background:transparent;text-align:left}.esw-carrier-small .esw-carrier-number{font-size:14px;font-weight:500;letter-spacing:.5px;margin:0;line-height:1.5;text-align:center}.esw-carrier-code.esw-carrier-small .esw-carrier-thumb{width:96px;min-height:44px;margin:0;padding:0;display:flex;align-items:center;justify-content:center}.esw-carrier-small svg{max-width:96px}
-</style><script>// The carrier value is drawn in the browser; it never appears in an image-service URL.
+</style><script>
+/* HCT-issued 聯運費暨特殊服務費表, effective 2026.04, geographic 聯運 sheets pp.2–6.
+ * Publication mirror: https://login.gainhow.tw/Content/doc/cht/PdfFiles/11403-%E8%81%AF%E9%81%8B%E4%B8%80%E8%A6%BD%E8%A1%A81140304.pdf
+ * Only definite geographic matches add the surcharge label. No quote, no promise of delivery.
+ * Special-service tables, unnamed villages and ambiguous ranges require station confirmation.
+ */
+const InquiryFreight=(()=>{
+ const version='HCT-2026.04-geography-1',suffix='（加收聯運費）';
+ const clean=value=>String(value||'').replace(/\s*[（(]\s*(?:加收聯運費|配送方式待確認|配送範圍待確認)\s*[）)]\s*$/g,'').trim();
+ const norm=value=>clean(value).normalize('NFKC').replace(/臺/g,'台').replace(/[\s,，、]/g,'').replace(/^\d{3}(?:\d{2,3})?(?=[\u4e00-\u9fff])/,'').replace(/([一二三四五六七八九十]+)(?=段|巷|弄|號)/g,x=>{const d='零一二三四五六七八九';return String(x.includes('十')?(Number(d.indexOf(x.split('十')[0]))||1)*10+(d.indexOf(x.split('十')[1])>0?d.indexOf(x.split('十')[1]):0):d.indexOf(x))});
+ const rules=[];
+ const add=(county,districts,parts,page)=>districts.split('、').forEach(district=>rules.push({county,district,parts:parts?parts.split('、'):null,page}));
+ add('新北市','金山區、萬里區、貢寮區、雙溪區、平溪區、烏來區、坪林區、三芝區、石門區',null,3);
+ add('新竹縣','尖石鄉、五峰鄉、峨眉鄉、北埔鄉',null,3);
+ add('苗栗縣','泰安鄉、獅潭鄉、卓蘭鎮',null,3);
+ add('台中市','和平區',null,3);
+ add('台南市','龍崎區、玉井區、左鎮區、楠西區、南化區、北門區、山上區、大內區',null,3);
+ add('高雄市','內門區、杉林區、甲仙區、六龜區、那瑪夏區、桃源區、茂林區、旗津區、美濃區、旗山區',null,3);
+ add('屏東縣','高樹鄉、枋寮鄉、佳冬鄉、琉球鄉、南州鄉、新埤鄉、崁頂鄉、春日鄉、泰武鄉、來義鄉、獅子鄉、霧台鄉、滿州鄉、牡丹鄉、瑪家鄉、三地門鄉、枋山鄉、車城鄉、恆春鎮、林邊鄉',null,6);
+ add('台東縣','長濱鄉、成功鎮、太麻里鄉、金峰鄉、大武鄉、達仁鄉、東河鄉、池上鄉、關山鎮、海端鄉、鹿野鄉、延平鄉',null,3);
+ add('嘉義縣','阿里山鄉、大埔鄉、布袋鎮',null,4);
+ add('雲林縣','台西鄉、水林鄉、東勢鄉、四湖鄉、口湖鄉',null,6);
+ add('宜蘭縣','大同鄉',null,6);
+ add('花蓮縣','豐濱鄉',null,6);
+ add('新北市','瑞芳區','九份、金瓜石、鼻頭、水湳洞、水楠洞、猴硐',3);
+ add('新北市','土城區','石門路',4);
+ add('新北市','淡水區','水源里百六戛',4);
+ add('新北市','三峽區','五寮、插角、有木、竹崙、三層坪、九份路、金圳里',4);
+ add('新北市','石碇區','光明路、楠枋寮巷、蕃薯寮巷、四分子、九層坪、十八重溪、大格門、大崙、大湖格、大溪漧、小格頭巷、小粗坑、中楒仔腳、內楒仔腳、月扇湖、半路店、外楒仔腳、玉桂嶺、石汐路、吊橋、耳空龜、西勢坑、串空湖、松柏崎、南勢坑、員山子、員潭坑、峰頭、格頭、烏塗窟、崩山、蛇舌子、蚯蚓坑、頂紙寮坑、鹿窟、彭山、番仔坑、華梵路、黃帝殿、碇坪路2段、碇南路、碇格路1段、碇格路2段、樟空子、蓬菜寮、橫坪、磨石坑、豐田、藤寮坑、北宜路4段、北宜路5段、北宜路6段',4);
+ add('台北市','士林區','仰德大道1段、仰德大道2段、仰德大道3段、仰德大道4段、莊頂路、中庸1路、中庸2路、中庸5路、仁民路、凱旋路、愛富1街、愛富2街、愛富3街、中華路、建業路、和平路、格致路、至善路2段、故宮路、力行街、華岡路、華崗路、長生巷、長春街、厚生街、光華路、厚生巷、國泰街、新安街、永公路、新園街、至善路1段138巷、至善路3段、平菁街、中社路1段、中社路2段、明溪街、翠山街、劍南路、大亨路、菁山路、新安路',3);
+ add('台北市','北投區','東昇路、紗帽路、湖底路、建國街、勝利街、湖山路1段、湖山路2段、新生街、中興路、同德街、東山路、中山北路7段219巷3弄',4);
+ add('新竹縣','關西鎮','金山里、玉山里、新富里、錦山里、南新里、東光里、東山里、童話世界、陀佛世界',4);
+ add('新竹縣','新埔鎮','清水里、新北里',4);
+ add('苗栗縣','南庄鄉','東河、蓬萊村、鹿場',4);
+ add('苗栗縣','三灣鄉','神棹山',4);
+ add('苗栗縣','大湖鄉','東興村、武榮村、新開村、栗林村',3);
+ add('桃園市','大溪區','復興里、新峰里、三民里、復興路2段',4);
+ add('桃園市','復興區','三光、華陵、澤仁、三民、長興、奎輝、義盛、羅浮、霞雲、高義、達觀山',4);
+ add('台中市','東勢區','下石嵙巷、上石嵙巷、石山巷、圳寮巷、珍東巷、石城街、東關路4段、東關路5段、中坑坪路、中坪頂、東崎街1段、東崎街2段、東崎街3段、慶福里、慶福街、慶東里、天冷',3);
+ add('南投縣','信義鄉','潭南村、地利村、人和村、雙龍村、太平巷、東埔村、新鄉村、自強村、陽和巷',3);
+ add('南投縣','鹿谷鄉','和雅村、林尾巷、溪頭、米提街、森林巷、羊彎巷',4);
+ add('南投縣','國姓鄉','南港村',4);
+ add('南投縣','水里鄉','民和村',4);
+ add('南投縣','仁愛鄉','南豐村、大同村、中正村、互助村、新生村、春陽村、精英村、法治村、德鹿谷村、合作村、都達村、萬豐村、親愛村、力行村、發祥村、慈峰巷',4);
+ add('雲林縣','古坑鄉','桂林村、光山、山峰村、華山村、華南村、石仔坑、圳頭坑、草嶺村、樟湖',4);
+ add('嘉義縣','番路鄉','隙頂、巃頭、中寮、龍美、公興村、公田村、觸口村、大湖村、民和村、草山村',4);
+ add('嘉義縣','中埔鄉','三層村、東興村、中崙村、澐水村、灣潭村、石硦村、深坑村、瑞豐村',4);
+ add('嘉義縣','竹崎鄉','石棹、中和村、永和、奮起湖、光華村、桃源村、白杞村、仁壽村、緞繻村、金獅村、文峰村、塘興村、紅南坑',4);
+ add('嘉義縣','梅山鄉','安靖村、雙溪村、過山村、圳北村、圳南村、大南村、半天村、九芎坑、坑子口、梅圳、永興、水尾、開元后、太平村、太興村、仁和村、龍眼村、碧湖村、瑞里村、瑞峰村、太和村',5);
+ add('嘉義縣','東石鄉','三家村、下揖村、型厝村、海埔村、副瀨村、港口村、塭港村、溪下村、龍港村、鰲鼓村、東崙村、西崙村、塭仔村、網寮村、掌潭村',6);
+ add('台南市','白河區','關嶺里關仔嶺、南寮里、大林里、崁頭里、白水溪村、姜仔崙村',6);
+ add('台南市','東山區','高原里、東原里、六重溪、青山里、嶺南里、水雲里、南溪里、南勢里',6);
+ add('台南市','六甲區','王爺里、大丘里、水流東里',6);
+ add('台南市','七股區','三股里、十份里、永吉里、西寮里、頂山里、城內里、大潭里、後港里',6);
+ add('屏東縣','萬巒鄉','成德村、新厝村、新置村、萬金村、赤山村',6);
+ add('宜蘭縣','南澳鄉','東岳村、金洋村、武塔村、碧侯村、金岳村、澳花村、漢本',6);
+ add('宜蘭縣','蘇澳鎮','南強里、朝陽里、東澳里',6);
+ add('宜蘭縣','員山鄉','中華村、福山植物園、員山路3段、冷水路、粗坑路、長嶺路、再連路、雙埤路、福山街',6);
+ add('宜蘭縣','頭城鎮','濱海路2段、濱海路3段、濱海路4段、濱海路5段、濱海路6段、濱海路7段',6);
+ add('花蓮縣','壽豐鄉','月眉村、池南村、鹽寮、水璉村',6);
+ add('花蓮縣','秀林鄉','銅門村、文蘭村、富世村、和平村、和中村、和仁村、崇德村',6);
+ add('花蓮縣','瑞穗鄉','奇美村',6);
+ add('花蓮縣','玉里鎮','樂合里安通、樂合里溫泉',6);
+ add('花蓮縣','富里鄉','吳江村安通',6);
+ add('台東縣','卑南鄉','龍泉路、鎮樂路、溫泉路',3);
+ add('台東縣','台東市','富岡里',3);
+ const tailVariants=tail=>[tail,tail.replace(/^[\u4e00-\u9fff]{1,5}[村里](?:\d+鄰)?/,''),tail.replace(/^\d+鄰/,'')];
+ const partMatch=(tail,part)=>tailVariants(tail).some(t=>t.startsWith(norm(part)));
+ const region=(a,c,d)=>a.startsWith(c+d)?a.slice((c+d).length):null;
+ const numbered=(tail,road,min,max,parity)=>{for(const t of tailVariants(tail)){const r=norm(road);if(!t.startsWith(r))continue;const m=t.slice(r.length).match(/^(\d+)(?:之\d+|-\d+)?號/);if(m){const n=Number(m[1]);if(n>=min&&n<=max&&(parity===undefined||n%2===parity))return true}}return false};
+ const ranges=[['新北市','八里區','商港路',32,32],['新北市','八里區','商港路',36,36],...([120,122,123,128,133,180].map(n=>['新北市','八里區','商港路',n,n])),['新北市','八里區','荖阡坑路',4,24],['新北市','八里區','商港六路',47,47],['台北市','北投區','泉源路',218,Infinity,0],['台北市','北投區','泉源路',221,Infinity,1],['台北市','北投區','登山路',69,Infinity],['台北市','士林區','臨溪路',70,70],['台中市','東勢區','東蘭路',194,194],['台中市','東勢區','東坑路',799,Infinity],['台中市','東勢區','東蘭街',195,Infinity],['台中市','烏日區','慶光路',1,69],['南投縣','鹿谷鄉','愛鄉路',1,98],['南投縣','鹿谷鄉','興產路',1,50],['雲林縣','古坑鄉','尖山坑路',1,100]];
+ function assess(address,delivery){
+  if(delivery==='門市自取')return {status:'pickup',version};
+  const a=norm(address);if(!a)return {status:'unknown',version};
+  if(a.startsWith('連江縣')||/^台東縣(?:蘭嶼鄉|綠島鄉)/.test(a)||/^南投縣仁愛鄉(?:眉溪|榮興|翠華|翠巒)/.test(a))return {status:'restricted',version};
+  if(a.startsWith('金門縣')||a.startsWith('澎湖縣'))return {status:'surcharge',version,page:2};
+  for(const r of rules){const tail=region(a,r.county,r.district);if(tail!==null&&(!r.parts||r.parts.some(p=>partMatch(tail,p))))return {status:'surcharge',version,page:r.page};}
+  for(const r of ranges){const tail=region(a,r[0],r[1]);if(tail!==null&&numbered(tail,r[2],r[3],r[4],r[5]))return {status:'surcharge',version,page:4};}
+  const t=region(a,'高雄市','田寮區');if(t!==null&&!/崗安路|崗北路/.test(t))return {status:'surcharge',version,page:6};
+  return {status:'unknown',version};
+ }
+ function fromFields(fields){const get=k=>(fields||[]).find(f=>f.label===k)?.value||'';return assess(get('地址'),get('運送方式偏好'));}
+ function display(address,delivery){const raw=clean(address),r=assess(raw,delivery);return raw+(r.status==='surcharge'?suffix:r.status==='restricted'?'（配送範圍待確認）':'');}
+ function fieldValue(field,fields){if(field.label!=='地址')return field.value;const delivery=(fields||[]).find(f=>f.label==='運送方式偏好')?.value||'';return display(field.value,delivery);}
+ return {version,suffix,clean,assess,fromFields,display,fieldValue};
+})();
+
+</script>
+<script>// The carrier value is drawn in the browser; it never appears in an image-service URL.
 const CarrierBarcode={
  library:'https://cdn.jsdelivr.net/npm/jsbarcode@3.12.3/dist/JsBarcode.all.min.js',pending:null,
  ready(){if(window.JsBarcode)return Promise.resolve();if(this.pending)return this.pending;this.pending=new Promise((resolve,reject)=>{let script=Array.from(document.scripts).find(s=>s.src===this.library);const fail=()=>reject(Error('barcode library unavailable'));if(!script){script=document.createElement('script');script.src=this.library;script.referrerPolicy='no-referrer';script.addEventListener('load',()=>window.JsBarcode?resolve():fail(),{once:true});script.addEventListener('error',fail,{once:true});document.head.append(script)}else{script.addEventListener('load',()=>window.JsBarcode?resolve():fail(),{once:true});script.addEventListener('error',fail,{once:true})}}).catch(e=>{this.pending=null;throw e});return this.pending},
@@ -87,16 +175,20 @@ search.oninput=render;$('sort').onchange=render;
 function renderInquiry(){const items=$('inquiryItems');items.replaceChildren();for(const p of selectedProducts()){const row=el('div',undefined,'inquiry-row');const image=el('img');image.alt=p.name;if(p.image&&httpsUrl(p.image))image.src=p.image;const copy=el('div');copy.append(el('h3',p.name),el('small','商品編號：'+p.displayNumber+' · '+compact(p.volume)+' · '+compact(p.abv)),el('small','參考價格：'+priceText(p)));const label=el('label','參考數量');const quantity=el('input');quantity.type='number';quantity.min='1';quantity.max='99';quantity.step='1';quantity.inputMode='numeric';quantity.value=String(inquirySelection.get(inquiryKey(p)));quantity.setAttribute('aria-label',p.name+'的參考數量');quantity.oninput=()=>{const n=Number(quantity.value);if(Number.isInteger(n)&&n>=1&&n<=99){quantity.setCustomValidity('');inquirySelection.set(inquiryKey(p),n);updateSelectionCount()}else quantity.setCustomValidity('請填寫1至99的整數')};label.append(quantity);const remove=el('button','移除');remove.type='button';remove.setAttribute('aria-label','移除 '+p.name+'（商品編號 '+p.displayNumber+'）');remove.onclick=()=>{inquirySelection.delete(inquiryKey(p));renderInquiry();render()};copy.append(label,remove,productBarcodeFigure(p.barcode));row.append(image,copy);items.append(row)}if(!selectedProducts().length)items.append(el('p','詢問單目前沒有商品，請關閉並回目錄選擇。'));$('reviewInquiry').disabled=!selectedProducts().length;updateSelectionCount()}
 function buildInquiryText(list,selection,notes){
  const lines=['東太陽商品資訊詢問單'];const add=(label,value)=>{const v=String(value||'').trim();if(v)lines.push(label+'：'+v)};
- add('公司抬頭',$('inquiryCompany').value);add('統一編號',$('inquiryTaxId').value);add('發票類型',inquiryPreference('invoicePreference'));if(inquiryPreference('invoicePreference')==='載具')add('載具號碼',$('inquiryCarrier').value);add('姓名',$('inquiryName').value);add('聯絡電話',$('inquiryPhone').value);add('地址',$('inquiryAddress').value);
+ add('公司抬頭',$('inquiryCompany').value);add('統一編號',$('inquiryTaxId').value);add('發票類型',inquiryPreference('invoicePreference'));if(inquiryPreference('invoicePreference')==='載具')add('載具號碼',$('inquiryCarrier').value);add('姓名',$('inquiryName').value);add('聯絡電話',$('inquiryPhone').value);add('地址',InquiryFreight.display($('inquiryAddress').value,inquiryPreference('deliveryPreference')));
  add('運送方式偏好',inquiryPreference('deliveryPreference'));const pay=inquiryPreference('paymentPreference');if(pay)add('付款方式偏好',pay+'（現場確認）');
  if(inquiryPreference('billingPreference')==='不同'){add('帳單姓名',$('billingName').value);add('帳單電話',$('billingPhone').value);add('帳單地址',$('billingAddress').value);add('帳單郵遞區號',$('billingPostal').value)}
  if($('inquiryMarketing').checked)add('最新消息與優惠資訊聯繫意願','同意');
  lines.push('您好，我想了解以下商品：');
  list.forEach((p,i)=>{const row=[(i+1)+'. '+p.name];if(p.displayNumber)row.push('商品編號：'+p.displayNumber);if(p.barcode)row.push('條碼：'+p.barcode);const spec=[compact(p.volume),compact(p.abv)].filter(Boolean).join(' · ');if(spec)row.push('規格：'+spec);const qty=selection.get(inquiryKey(p));if(qty)row.push('參考數量：'+qty);if(validPrice(p))row.push('參考價格：'+priceText(p));lines.push(row.join('\n'))});
  add('備註',notes);lines.push('此單僅供商品資訊洽詢，不成立訂購、不保留庫存、不收款；交易由人員於現場確認。');return lines.join('\n\n')}
-$('openInquiry').onclick=()=>{$('inquiryEdit').hidden=false;$('inquiryReview').hidden=true;$('inquiryFeedback').textContent='';renderInquiry();$('inquiryDialog').showModal();$('inquiryDialog').scrollTop=0;document.body.classList.add('modal-open')};
+$('openInquiry').onclick=()=>{$('inquiryEdit').hidden=false;$('inquiryReview').hidden=true;$('inquiryFeedback').textContent='';renderInquiry();updateFreightHint();$('inquiryDialog').showModal();$('inquiryDialog').scrollTop=0;document.body.classList.add('modal-open')};
 $('closeInquiry').onclick=()=>$('inquiryDialog').close();$('inquiryDialog').addEventListener('close',()=>document.body.classList.remove('modal-open'));
 ['inquiryAddress'].forEach(id=>$(id).addEventListener('input',()=>$(id).setCustomValidity('')));
+
+function updateFreightHint(){const input=$('inquiryAddress'),r=InquiryFreight.assess(input.value,inquiryPreference('deliveryPreference'));let hint=$('inquiryFreightHint');if(!hint){hint=document.createElement('small');hint.id='inquiryFreightHint';hint.setAttribute('role','status');hint.style.cssText='display:block;margin:6px 0;color:#805329;line-height:1.5;font-size:13px';input.insertAdjacentElement('afterend',hint);input.setAttribute('aria-describedby',hint.id)}hint.textContent=r.status==='surcharge'?'地址：'+InquiryFreight.display(input.value,inquiryPreference('deliveryPreference'))+'。聯運費金額由人員另行確認，不計入商品參考總額。':r.status==='restricted'?'此地址的配送範圍需另行確認，請洽小編。':r.status==='pickup'?'門市自取不加註聯運費。':'偏遠或特殊配送地址可能另收費用，實際運費由人員確認。';}
+$('inquiryAddress').addEventListener('input',updateFreightHint);document.querySelectorAll('input[name="deliveryPreference"]').forEach(n=>n.addEventListener('change',updateFreightHint));updateFreightHint();
+
 $('inquiryPhone').oninput=()=>{$('inquiryPhone').setCustomValidity('')};
 function inquiryPreference(name){const n=document.querySelector('input[name="'+name+'"]:checked');return n?n.value:''}
 document.querySelectorAll('input[name="billingPreference"]').forEach(n=>n.onchange=()=>{$('billingFields').hidden=inquiryPreference('billingPreference')!=='不同'});
