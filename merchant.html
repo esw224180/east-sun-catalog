@@ -20,7 +20,7 @@ const dashboard=document.getElementById('dashboard'),loading=document.getElement
 let staffCredential=null,bridgeId=crypto.randomUUID();
 const staffReady=liff.init({liffId:'2012112469-22cFHDzV'}).then(()=>{
  if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return null}
- staffCredential=liff.getAccessToken();return staffCredential
+ staffCredential=liff.getIDToken();return staffCredential
 }).catch(()=>null);
 function openDashboard(){
  bridgeId=crypto.randomUUID();const params=new URLSearchParams(location.search),url=new URL('https://script.google.com/macros/s/AKfycbziZuYIin3aRJjCwujRFubd8iIqNAEFe9ppbDau6m14fy6_R72XNOx_NPAeqwqrBMaBoA/exec');
@@ -31,7 +31,7 @@ staffReady.then(openDashboard);
 window.addEventListener('message',async event=>{
  if(!/^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/i.test(event.origin)||!event.data||event.data.type!=='ESW_STAFF_AUTH_REQUEST'||event.data.bridgeId!==bridgeId||typeof event.data.nonce!=='string'||!/^[a-f0-9-]{36}$/i.test(event.data.nonce)||!event.source)return;
  const token=await staffReady;if(!token){event.source.postMessage({type:'ESW_STAFF_AUTH_RESPONSE',nonce:event.data.nonce,error:true},event.origin);return}
- event.source.postMessage({type:'ESW_STAFF_AUTH_RESPONSE',nonce:event.data.nonce,accessToken:token},event.origin)
+ event.source.postMessage({type:'ESW_STAFF_AUTH_RESPONSE',nonce:event.data.nonce,idToken:token},event.origin)
 });
 dashboard.addEventListener('load',()=>{loading.hidden=true});
 setTimeout(()=>{loading.hidden=true},15000);
