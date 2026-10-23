@@ -34,8 +34,8 @@ body{padding-bottom:145px}.select-product{display:flex;align-items:center;gap:9p
  * Special-service tables, unnamed villages and ambiguous ranges require station confirmation.
  */
 const InquiryFreight=(()=>{
- const version='HCT-2026.04-geography-1',suffix='（加收聯運費）';
- const clean=value=>String(value||'').replace(/\s*[（(]\s*(?:加收聯運費|配送方式待確認|配送範圍待確認)\s*[）)]\s*$/g,'').trim();
+ const version='HCT-2026.04-2cai-1piece-2',suffix='（加收聯運費）';
+ const clean=value=>String(value||'').replace(/\s*[（(]\s*(?:加收聯運費(?:\s+NT\$\s*[\d,]+[，,]\s*2才[／/]1件估算(?:[；;]海運)?)?(?:[，,]金額待確認)?|配送方式待確認|配送範圍待確認)\s*[）)]\s*$/g,'').trim();
  const norm=value=>clean(value).normalize('NFKC').replace(/臺/g,'台').replace(/[\s,，、]/g,'').replace(/^\d{3}(?:\d{2,3})?(?=[\u4e00-\u9fff])/,'').replace(/([一二三四五六七八九十]+)(?=段|巷|弄|號)/g,x=>{const d='零一二三四五六七八九';return String(x.includes('十')?(Number(d.indexOf(x.split('十')[0]))||1)*10+(d.indexOf(x.split('十')[1])>0?d.indexOf(x.split('十')[1]):0):d.indexOf(x))});
  const rules=[];
  const add=(county,districts,parts,page)=>districts.split('、').forEach(district=>rules.push({county,district,parts:parts?parts.split('、'):null,page}));
@@ -98,9 +98,10 @@ const InquiryFreight=(()=>{
  const region=(a,c,d)=>a.startsWith(c+d)?a.slice((c+d).length):null;
  const numbered=(tail,road,min,max,parity)=>{for(const t of tailVariants(tail)){const r=norm(road);if(!t.startsWith(r))continue;const m=t.slice(r.length).match(/^(\d+)(?:之\d+|-\d+)?號/);if(m){const n=Number(m[1]);if(n>=min&&n<=max&&(parity===undefined||n%2===parity))return true}}return false};
  const ranges=[['新北市','八里區','商港路',32,32],['新北市','八里區','商港路',36,36],...([120,122,123,128,133,180].map(n=>['新北市','八里區','商港路',n,n])),['新北市','八里區','荖阡坑路',4,24],['新北市','八里區','商港六路',47,47],['台北市','北投區','泉源路',218,Infinity,0],['台北市','北投區','泉源路',221,Infinity,1],['台北市','北投區','登山路',69,Infinity],['台北市','士林區','臨溪路',70,70],['台中市','東勢區','東蘭路',194,194],['台中市','東勢區','東坑路',799,Infinity],['台中市','東勢區','東蘭街',195,Infinity],['台中市','烏日區','慶光路',1,69],['南投縣','鹿谷鄉','愛鄉路',1,98],['南投縣','鹿谷鄉','興產路',1,50],['雲林縣','古坑鄉','尖山坑路',1,100]];
- function assess(address,delivery){
+ function classify(address,delivery){
   if(delivery==='門市自取')return {status:'pickup',version};
   const a=norm(address);if(!a)return {status:'unknown',version};
+  if(/^高雄市(?:旗山區中寮[12一二]路|田寮區崑山路)/.test(a))return {status:'waived',version};
   if(a.startsWith('連江縣')||/^台東縣(?:蘭嶼鄉|綠島鄉)/.test(a)||/^南投縣仁愛鄉(?:眉溪|榮興|翠華|翠巒)/.test(a))return {status:'restricted',version};
   if(a.startsWith('金門縣')||a.startsWith('澎湖縣'))return {status:'surcharge',version,page:2};
   for(const r of rules){const tail=region(a,r.county,r.district);if(tail!==null&&(!r.parts||r.parts.some(p=>partMatch(tail,p))))return {status:'surcharge',version,page:r.page};}
@@ -108,8 +109,53 @@ const InquiryFreight=(()=>{
   const t=region(a,'高雄市','田寮區');if(t!==null&&!/崗安路|崗北路/.test(t))return {status:'surcharge',version,page:6};
   return {status:'unknown',version};
  }
+ // For 2才/one package, dimensional billing weight is 20kg. These minimum/100kg
+ // schedules all remain at their minimum at 20kg; actual heavier cargo is not inferred.
+ const minima=[];
+ const min=(county,districts,fee)=>districts.split('、').forEach(d=>minima.push([county,d,fee]));
+ min('新北市','金山區、萬里區',80);min('新北市','貢寮區、雙溪區、平溪區、烏來區、坪林區、石門區、瑞芳區',160);min('新北市','三芝區、淡水區、三峽區',50);min('新北市','土城區、石碇區',100);min('新北市','八里區',360);
+ min('台北市','士林區',80);min('台北市','北投區',100);
+ min('新竹縣','尖石鄉、五峰鄉',160);min('新竹縣','峨眉鄉、新埔鎮',100);min('新竹縣','北埔鄉、關西鎮',50);
+ min('苗栗縣','泰安鄉',360);min('苗栗縣','獅潭鄉、大湖鄉、南庄鄉、三灣鄉',100);min('苗栗縣','卓蘭鎮',50);
+ min('桃園市','大溪區、復興區',230);min('台中市','和平區',230);min('台中市','東勢區',160);min('台中市','烏日區',80);
+ min('南投縣','信義鄉、仁愛鄉',160);min('南投縣','鹿谷鄉',230);min('南投縣','國姓鄉',80);min('南投縣','水里鄉',100);
+ min('雲林縣','古坑鄉',360);min('雲林縣','台西鄉、水林鄉、東勢鄉、四湖鄉、口湖鄉',50);
+ min('嘉義縣','大埔鄉、梅山鄉',360);min('嘉義縣','阿里山鄉、番路鄉、中埔鄉、竹崎鄉',230);min('嘉義縣','東石鄉',100);min('嘉義縣','布袋鎮',50);
+ min('台南市','龍崎區、南化區',160);min('台南市','玉井區、左鎮區、楠西區、白河區、東山區',100);min('台南市','北門區',80);min('台南市','山上區、大內區、六甲區、七股區',50);
+ min('高雄市','內門區、杉林區、甲仙區、六龜區、那瑪夏區、桃源區、茂林區',230);min('高雄市','旗津區',50);min('高雄市','美濃區、旗山區',160);min('高雄市','田寮區',100);
+ min('屏東縣','高樹鄉、南州鄉、崁頂鄉、林邊鄉',50);min('屏東縣','枋寮鄉、佳冬鄉、新埤鄉、枋山鄉、車城鄉、恆春鎮、萬巒鄉',80);min('屏東縣','琉球鄉、滿州鄉、牡丹鄉、瑪家鄉、三地門鄉',160);min('屏東縣','春日鄉、泰武鄉、來義鄉、獅子鄉、霧台鄉',230);
+ min('宜蘭縣','大同鄉',700);min('宜蘭縣','南澳鄉、蘇澳鎮、員山鄉、頭城鎮',160);
+ min('花蓮縣','豐濱鄉、壽豐鄉、秀林鄉、瑞穗鄉',160);min('花蓮縣','玉里鎮、富里鄉',50);
+ min('台東縣','長濱鄉、成功鎮、金峰鄉、大武鄉、達仁鄉、東河鄉、池上鄉、關山鎮、海端鄉、延平鄉',100);min('台東縣','太麻里鄉、鹿野鄉、台東市',50);min('台東縣','卑南鄉',80);
+ const overrides=[];
+ const override=(c,d,parts,fee)=>parts.split('、').forEach(p=>overrides.push([c,d,p,fee]));
+ override('新北市','石碇區','北宜路4段、北宜路5段、北宜路6段',160);
+ override('台北市','士林區','永公路、臨溪路100巷92號、陽明路1段、陽明路2段、竹子湖路、新園街、至善路1段138巷、至善路3段、平菁街、中社路1段、中社路2段、明溪街、翠山街、劍南路、大亨路、菁山路、行義路、新安路',100);
+ override('新竹縣','關西鎮','童話世界、陀佛世界、金山里、玉山里、新富里、錦山里',100);
+ override('台中市','東勢區','下石嵙巷、上石嵙巷、石山巷、圳寮巷、珍東巷、石城街',50);
+ override('台中市','東勢區','東蘭街、明正里東蘭街',80);
+ override('南投縣','仁愛鄉','德鹿谷村、合作村、都達村、萬豐村、親愛村',230);override('南投縣','仁愛鄉','力行村、發祥村、慈峰巷',360);
+ override('雲林縣','古坑鄉','草嶺村、樟湖',700);
+ override('嘉義縣','竹崎鄉','紅南坑',360);override('嘉義縣','阿里山鄉','里佳村、豐山村、來吉村、茶山村',700);override('嘉義縣','阿里山鄉','山美村、新美村、達邦村、特富野、十字、中正、中山、香林、頂湖、樂野村',360);
+ override('台東縣','長濱鄉','城仔埔、長光、八仙洞',160);override('台東縣','長濱鄉','寧埔村、南溪村、忠勇村、樟源村、三間村',230);
+ override('台東縣','東河鄉','北源村',230);override('台東縣','太麻里鄉','金崙村、多良村、大溪村',100);
+ override('屏東縣','來義鄉','大後村、來義村',160);override('屏東縣','三地門鄉','德文村、大社村',230);
+ override('屏東縣','恆春鎮','墾丁里、帆船里、鵝鸞鼻里、大光里、水泉里、山海里',160);override('屏東縣','車城鄉','溫泉村',160);
+ function assess(address,delivery){
+  const result=classify(address,delivery);if(result.status!=='surcharge')return result;
+  const a=norm(address);let fee=null,transport='land',condition='2才／1件、計費重量20公斤以內；聯運加收費，不含基本運費';
+  if(a.startsWith('金門縣')){fee=300;transport='sea';condition='2才／1件海運估算；空運、實際重量與船班另核';}
+  else if(a.startsWith('澎湖縣')){transport='sea';fee=/^澎湖縣(?:馬公市|白沙鄉|湖西鄉|西嶼鄉)/.test(a)?300:/^澎湖縣(?:七美鄉|望安鄉)/.test(a)?360:null;if(/鳥嶼|花嶼|東吉|吉貝|桶盤|將軍|虎井/.test(a))fee=360;condition='2才／第1件海運估算；離島轉船／轉郵與實際重量另核';}
+  else {
+   const found=minima.find(r=>region(a,r[0],r[1])!==null);if(found)fee=found[2];
+   for(const r of overrides){const t=region(a,r[0],r[1]);if(t!==null&&partMatch(t,r[2])){fee=r[3];break;}}
+   if(region(a,'台中市','東勢區')!==null&&numbered(region(a,'台中市','東勢區'),'東蘭路',194,194))fee=50;
+   if(/^台東縣海端鄉(?:利稻村|霧鹿村|啞口)/.test(a)){fee=130;condition='2才／1件以20公斤試算轉郵：首5公斤70元，其後每5公斤20元；實重、尺寸限制另核';}
+  }
+  return Object.assign(result,{feeCents:fee===null?null:fee*100,basisCai:2,pieces:1,billingWeightKg:20,transport,condition});
+ }
  function fromFields(fields){const get=k=>(fields||[]).find(f=>f.label===k)?.value||'';return assess(get('地址'),get('運送方式偏好'));}
- function display(address,delivery){const raw=clean(address),r=assess(raw,delivery);return raw+(r.status==='surcharge'?suffix:r.status==='restricted'?'（配送範圍待確認）':'');}
+ function display(address,delivery){const raw=clean(address),r=assess(raw,delivery);return raw+(r.status==='surcharge'?(Number.isInteger(r.feeCents)?'（加收聯運費 NT$ '+(r.feeCents/100).toLocaleString('en-US')+'，2才／1件估算'+(r.transport==='sea'?'；海運':'')+'）':'（加收聯運費，金額待確認）'):r.status==='restricted'?'（配送範圍待確認）':'');}
  function fieldValue(field,fields){if(field.label!=='地址')return field.value;const delivery=(fields||[]).find(f=>f.label==='運送方式偏好')?.value||'';return display(field.value,delivery);}
  return {version,suffix,clean,assess,fromFields,display,fieldValue};
 })();
@@ -186,7 +232,7 @@ $('openInquiry').onclick=()=>{$('inquiryEdit').hidden=false;$('inquiryReview').h
 $('closeInquiry').onclick=()=>$('inquiryDialog').close();$('inquiryDialog').addEventListener('close',()=>document.body.classList.remove('modal-open'));
 ['inquiryAddress'].forEach(id=>$(id).addEventListener('input',()=>$(id).setCustomValidity('')));
 
-function updateFreightHint(){const input=$('inquiryAddress'),r=InquiryFreight.assess(input.value,inquiryPreference('deliveryPreference'));let hint=$('inquiryFreightHint');if(!hint){hint=document.createElement('small');hint.id='inquiryFreightHint';hint.setAttribute('role','status');hint.style.cssText='display:block;margin:6px 0;color:#805329;line-height:1.5;font-size:13px';input.insertAdjacentElement('afterend',hint);input.setAttribute('aria-describedby',hint.id)}hint.textContent=r.status==='surcharge'?'地址：'+InquiryFreight.display(input.value,inquiryPreference('deliveryPreference'))+'。聯運費金額由人員另行確認，不計入商品參考總額。':r.status==='restricted'?'此地址的配送範圍需另行確認，請洽小編。':r.status==='pickup'?'門市自取不加註聯運費。':'偏遠或特殊配送地址可能另收費用，實際運費由人員確認。';}
+function updateFreightHint(){const input=$('inquiryAddress'),r=InquiryFreight.assess(input.value,inquiryPreference('deliveryPreference'));let hint=$('inquiryFreightHint');if(!hint){hint=document.createElement('small');hint.id='inquiryFreightHint';hint.setAttribute('role','status');hint.style.cssText='display:block;margin:6px 0;color:#805329;line-height:1.5;font-size:13px';input.insertAdjacentElement('afterend',hint);input.setAttribute('aria-describedby',hint.id)}hint.textContent=r.status==='surcharge'?'地址：'+InquiryFreight.display(input.value,inquiryPreference('deliveryPreference'))+'。'+r.condition+'。不計入商品參考總額，實際費用由人員確認。':r.status==='restricted'?'此地址的配送範圍需另行確認，請洽小編。':r.status==='pickup'?'門市自取不加註聯運費。':'偏遠或特殊配送地址可能另收費用，實際運費由人員確認。';}
 $('inquiryAddress').addEventListener('input',updateFreightHint);document.querySelectorAll('input[name="deliveryPreference"]').forEach(n=>n.addEventListener('change',updateFreightHint));updateFreightHint();
 
 $('inquiryPhone').oninput=()=>{$('inquiryPhone').setCustomValidity('')};
